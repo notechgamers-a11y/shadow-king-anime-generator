@@ -1,0 +1,113 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SHADOW KING Anime Generator</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;background:#090914;color:white;
+  font-family:Arial,sans-serif;padding:20px;
+}
+.container{max-width:600px;margin:auto}
+h1{color:#b58cff;text-align:center}
+p{text-align:center;color:#aaa}
+input,textarea,select,button{
+  width:100%;padding:14px;margin:10px 0;
+  border-radius:10px;border:1px solid #554477;
+  background:#17172b;color:white;font-size:16px;
+}
+textarea{height:110px}
+button{
+  background:#762be9;border:0;font-weight:bold;
+}
+button:disabled{opacity:.5}
+#result{
+  width:100%;margin-top:15px;border-radius:12px;
+}
+#status{text-align:center;color:#c7a5ff}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>⚔ SHADOW KING</h1>
+<p>AI Anime Character Generator</p>
+
+<input id="apiKey" type="password"
+placeholder="Your Pollinations API key">
+
+<textarea id="prompt"
+placeholder="Describe your anime character...">A mysterious anime hero with black hair, glowing purple eyes, black fantasy outfit, cinematic dark fantasy background, highly detailed anime art</textarea>
+
+<select id="model">
+<option value="black-forest-labs/flux.1-schnell">Flux Schnell</option>
+</select>
+
+<button id="generate" onclick="generateImage()">
+Generate Anime Image
+</button>
+
+<p id="status">Ready to create your anime!</p>
+
+<img id="result" hidden>
+
+<button id="download" hidden onclick="downloadImage()">
+Download Image
+</button>
+</div>
+
+<script>
+let imageURL = "";
+
+async function generateImage(){
+ const key=document.getElementById("apiKey").value.trim();
+ const prompt=document.getElementById("prompt").value.trim();
+ const status=document.getElementById("status");
+ const button=document.getElementById("generate");
+ const image=document.getElementById("result");
+
+ if(!key || !prompt){
+  status.textContent="Enter API key and prompt first.";
+  return;
+ }
+
+ button.disabled=true;
+ status.textContent="Creating your anime image...";
+
+ try{
+  const url="https://gen.pollinations.ai/image/"
+    +encodeURIComponent(prompt)
+    +"?model="+encodeURIComponent(
+      document.getElementById("model").value
+    );
+
+  const response=await fetch(url,{
+   headers:{"Authorization":"Bearer "+key}
+  });
+
+  if(!response.ok) throw new Error("Generation failed: "+response.status);
+
+  const blob=await response.blob();
+  imageURL=URL.createObjectURL(blob);
+  image.src=imageURL;
+  image.hidden=false;
+  document.getElementById("download").hidden=false;
+  status.textContent="Anime image created successfully!";
+ }catch(error){
+  status.textContent="Error: "+error.message;
+ }finally{
+  button.disabled=false;
+ }
+}
+
+function downloadImage(){
+ const a=document.createElement("a");
+ a.href=imageURL;
+ a.download="shadow-king-anime.png";
+ a.click();
+}
+</script>
+</body>
+</html>
