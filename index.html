@@ -1,68 +1,140 @@
 
-<section style="background:#17172b;padding:20px;border-radius:15px;margin-top:25px;color:white">
-<h2 style="color:#b58cff;text-align:center">⚔ SHADOW KING ANIME CREATOR</h2>
+<section style="background:#17172b;color:white;padding:20px;border-radius:15px;margin-top:25px">
+<h2 style="color:#b58cff;text-align:center">🎬 SHADOW KING VIDEO MAKER</h2>
+<p>Upload your anime scenes and create a video.</p>
 
-<h3>Hero Name</h3>
-<input id="hero" value="Peter" style="width:100%;padding:12px">
+<input id="videoImages" type="file" accept="image/*" multiple>
 
-<h3>Anime Name</h3>
-<input id="anime" value="SHADOW KING" style="width:100%;padding:12px">
+<label>Video title</label>
+<input id="videoTitle" value="SHADOW KING - Episode 1">
 
-<h3>Story Type</h3>
-<select id="type" style="width:100%;padding:12px">
-<option>Dark Fantasy</option>
-<option>Action</option>
-<option>Adventure</option>
-<option>Mystery</option>
-</select>
+<label>Seconds per scene</label>
+<input id="sceneDuration" type="number" min="2" max="10" value="3">
 
-<button onclick="makeStory()" style="width:100%;padding:14px;background:#762be9;color:white">
-Generate Anime Story
+<button id="makeVideo" onclick="createAnimeVideo()">
+Create Anime Video
 </button>
 
-<pre id="story" style="white-space:pre-wrap;color:#d7c4ff"></pre>
+<p id="videoStatus">Ready</p>
 
-<h3>Episode Number</h3>
-<input id="episode" type="number" min="1" value="1" style="width:100%;padding:12px">
+<video id="animeVideo" controls playsinline
+style="width:100%;display:none"></video>
 
-<button onclick="makeScenes()" style="width:100%;padding:14px;background:#762be9;color:white">
-Generate Anime Scenes
-</button>
-
-<pre id="scenes" style="white-space:pre-wrap;color:#d7c4ff"></pre>
+<a id="videoDownload" style="display:none;color:#c7a5ff"
+download="shadow-king-episode.webm">Download Anime Video</a>
 </section>
 
+<canvas id="animeCanvas" width="1280" height="720"
+style="display:none"></canvas>
+
 <script>
-function makeStory(){
- const hero=document.getElementById("hero").value || "Peter";
- const anime=document.getElementById("anime").value || "SHADOW KING";
- const type=document.getElementById("type").value;
+async function createAnimeVideo(){
+ const files=document.getElementById("videoImages").files;
+ const status=document.getElementById("videoStatus");
+ const button=document.getElementById("makeVideo");
+ const title=document.getElementById("videoTitle").value;
+ const duration=Math.max(2,Math.min(10,
+ Number(document.getElementById("sceneDuration").value)||3));
 
- document.getElementById("story").textContent=
- `${anime}\nGenre: ${type}\n\n`+
- `Episode 1: The Awakening\n\n`+
- `${hero} ek rahasyamayi duniya mein pahunchta hai. `+
- `Wahan use ek ancient shadow power milti hai.\n\n`+
- `${hero}: Ye duniya itni khatarnak kyun hai?\n`+
- `Mysterious Voice: Tumhari asli power abhi jaagi nahi hai.\n\n`+
- `${hero} apni power ko samajhne ke liye ek nayi journey shuru karta hai.\n\n`+
- `To be continued...`;
-}
+ if(!files.length){
+  status.textContent="Please upload anime images first.";
+  return;
+ }
 
-function makeScenes(){
- const hero=document.getElementById("hero").value || "Peter";
- const ep=document.getElementById("episode").value || 1;
+ if(!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream){
+  status.textContent="Your browser does not support video recording.";
+  return;
+ }
 
- const scenes=[
-  "Opening: Dark fantasy kingdom ka cinematic view.",
-  `${hero} ek mysterious dungeon mein enter karta hai.`,
-  "Ek mysterious shadow system appear hota hai.",
-  `${hero} apni hidden power discover karta hai.`,
-  "Cliffhanger: Ek mysterious enemy saamne aata hai."
- ];
+ const canvas=document.getElementById("animeCanvas");
+ const ctx=canvas.getContext("2d");
+ const video=canvas.captureStream(30);
+ const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+ ? "video/webm;codecs=vp9":"video/webm";
 
- document.getElementById("scenes").textContent=
- `EPISODE ${ep}\n\n`+
- scenes.map((s,i)=>`SCENE ${i+1}\n${s}\n`).join("\n");
+ const recorder=new MediaRecorder(video,{mimeType:mime});
+ const chunks=[];
+
+ recorder.ondataavailable=e=>{
+  if(e.data.size)chunks.push(e.data);
+ };
+
+ button.disabled=true;
+ status.textContent="Preparing your anime scenes...";
+
+ try{
+  const images=await Promise.all(
+   Array.from(files).map(file=>new Promise((resolve,reject)=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>resolve({img,url});
+    img.onerror=()=>reject(new Error("Image loading failed"));
+    img.src=url;
+   }))
+  );
+
+  recorder.start();
+
+  const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+
+  for(let i=0;i<images.length;i++){
+   const {img}=images[i];
+   const start=performance.now();
+
+   while(performance.now()-start<duration*1000){
+    const elapsed=performance.now()-start;
+    const fade=Math.min(1,elapsed/500);
+
+    ctx.fillStyle="#090914";
+    ctx.fillRect(0,0,1280,720);
+
+    const scale=Math.min(1280/img.width,720/img.height);
+    const w=img.width*scale;
+    const h=img.height*scale;
+
+    ctx.globalAlpha=fade;
+    ctx.drawImage(img,(1280-w)/2,(720-h)/2,w,h);
+    ctx.globalAlpha=1;
+
+    ctx.fillStyle="rgba(0,0,0,.65)";
+    ctx.fillRect(0,650,1280,70);
+
+    ctx.fillStyle="white";
+    ctx.font="bold 32px Arial";
+    ctx.fillText(title.substring(0,50),35,695);
+
+    await sleep(33);
+   }
+
+   status.textContent="Creating scene "+(i+1)+" of "+images.length;
+  }
+
+  recorder.stop();
+
+  await new Promise(resolve=>{
+   recorder.onstop=resolve;
+  });
+
+  const blob=new Blob(chunks,{type:"video/webm"});
+  const url=URL.createObjectURL(blob);
+
+  const player=document.getElementById("animeVideo");
+  player.src=url;
+  player.style.display="block";
+
+  const download=document.getElementById("videoDownload");
+  download.href=url;
+  download.style.display="block";
+
+  status.textContent="Your anime video is ready!";
+
+  images.forEach(item=>URL.revokeObjectURL(item.url));
+ }catch(error){
+  if(recorder.state==="recording")recorder.stop();
+  status.textContent="Error: "+error.message;
+ }finally{
+  video.getTracks().forEach(track=>track.stop());
+  button.disabled=false;
+ }
 }
 </script>
