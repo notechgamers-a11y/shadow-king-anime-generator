@@ -1,235 +1,68 @@
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SHADOW KING Anime Studio</title>
-<style>
-*{box-sizing:border-box}
-body{
- margin:0;padding:20px;background:#090914;
- color:white;font-family:Arial,sans-serif
-}
-.container{max-width:600px;margin:auto}
-h1{text-align:center;color:#b58cff}
-p{text-align:center;color:#aaa}
-input,textarea,button{
- width:100%;padding:14px;margin:10px 0;
- border-radius:10px;border:1px solid #554477;
- background:#17172b;color:white;font-size:16px
-}
-textarea{height:120px}
-button{
- background:#762be9;border:0;font-weight:bold;
- cursor:pointer
-}
-button:disabled{opacity:.5}
-img{width:100%;border-radius:12px;margin-top:15px}
-.preview{max-height:350px;object-fit:contain}
-#status{text-align:center;color:#c7a5ff}
-.small{font-size:13px;color:#999}
-</style>
-</head>
-<body>
-<div class="container">
+<section style="background:#17172b;padding:20px;border-radius:15px;margin-top:25px;color:white">
+<h2 style="color:#b58cff;text-align:center">⚔ SHADOW KING ANIME CREATOR</h2>
 
-<h1>⚔ SHADOW KING</h1>
-<p>AI Anime Character & Scene Generator</p>
+<h3>Hero Name</h3>
+<input id="hero" value="Peter" style="width:100%;padding:12px">
 
-<input id="apiKey" type="password"
-placeholder="Temporary authorized API key">
+<h3>Anime Name</h3>
+<input id="anime" value="SHADOW KING" style="width:100%;padding:12px">
 
-<p class="small">
-Use only a scoped, user-authorized key.
-Never put a permanent secret key in public code.
-</p>
+<h3>Story Type</h3>
+<select id="type" style="width:100%;padding:12px">
+<option>Dark Fantasy</option>
+<option>Action</option>
+<option>Adventure</option>
+<option>Mystery</option>
+</select>
 
-<h3>1. Upload Peter Reference Image</h3>
-
-<input type="file" id="reference"
-accept="image/png,image/jpeg,image/webp">
-
-<img id="preview" class="preview" hidden>
-
-<h3>2. Describe Your Anime Scene</h3>
-
-<textarea id="prompt">Peter, the same anime hero from the reference image, black hair, glowing purple eyes, black fantasy outfit, standing in a mysterious dark fantasy kingdom, cinematic lighting, detailed anime illustration.</textarea>
-
-<h3>3. Generate Image</h3>
-
-<button id="generate" onclick="generateImage(false)">
-Generate New Anime Character
+<button onclick="makeStory()" style="width:100%;padding:14px;background:#762be9;color:white">
+Generate Anime Story
 </button>
 
-<button id="edit" onclick="generateImage(true)">
-Generate Using Reference Image
+<pre id="story" style="white-space:pre-wrap;color:#d7c4ff"></pre>
+
+<h3>Episode Number</h3>
+<input id="episode" type="number" min="1" value="1" style="width:100%;padding:12px">
+
+<button onclick="makeScenes()" style="width:100%;padding:14px;background:#762be9;color:white">
+Generate Anime Scenes
 </button>
 
-<p id="status">Ready to create your anime!</p>
-
-<img id="result" hidden>
-
-<button id="download" hidden onclick="downloadImage()">
-Download Anime Image
-</button>
-
-</div>
+<pre id="scenes" style="white-space:pre-wrap;color:#d7c4ff"></pre>
+</section>
 
 <script>
-let referenceFile=null;
-let generatedURL="";
+function makeStory(){
+ const hero=document.getElementById("hero").value || "Peter";
+ const anime=document.getElementById("anime").value || "SHADOW KING";
+ const type=document.getElementById("type").value;
 
-const reference=document.getElementById("reference");
-const preview=document.getElementById("preview");
-const status=document.getElementById("status");
-
-reference.addEventListener("change",()=>{
- referenceFile=reference.files[0];
-
- if(!referenceFile)return;
-
- if(referenceFile.size>10*1024*1024){
-  status.textContent="Image must be under 10 MB.";
-  reference.value="";
-  referenceFile=null;
-  return;
- }
-
- preview.src=URL.createObjectURL(referenceFile);
- preview.hidden=false;
- status.textContent="Reference image uploaded!";
-});
-
-async function generateImage(useReference){
-
- const key=document.getElementById("apiKey").value.trim();
- const prompt=document.getElementById("prompt").value.trim();
-
- const generate=document.getElementById("generate");
- const edit=document.getElementById("edit");
- const result=document.getElementById("result");
- const download=document.getElementById("download");
-
- if(!key||!prompt){
-  status.textContent="Enter your authorized key and prompt.";
-  return;
- }
-
- if(useReference&&!referenceFile){
-  status.textContent="Upload Peter's reference image first.";
-  return;
- }
-
- generate.disabled=true;
- edit.disabled=true;
- status.textContent="Creating anime image... Please wait.";
-
- try{
-
-  let response;
-
-  if(useReference){
-
-   const form=new FormData();
-   form.append("image",referenceFile);
-   form.append("prompt",prompt);
-   form.append("model","kontext");
-
-   response=await fetch(
-    "https://gen.pollinations.ai/v1/images/edits",
-    {
-     method:"POST",
-     headers:{
-      "Authorization":"Bearer "+key
-     },
-     body:form
-    }
-   );
-
-  }else{
-
-   const url=
-    "https://gen.pollinations.ai/image/"+
-    encodeURIComponent(prompt)+
-    "?model=black-forest-labs/flux.1-schnell";
-
-   response=await fetch(url,{
-    headers:{
-     "Authorization":"Bearer "+key
-    }
-   });
-
-   if(!response.ok){
-    throw new Error("Generation failed: "+response.status);
-   }
-
-   const blob=await response.blob();
-   showImage(blob);
-   status.textContent="Anime image created!";
-   return;
-  }
-
-  if(!response.ok){
-   throw new Error("Image editing failed: "+response.status);
-  }
-
-  const data=await response.json();
-
-  if(!data.data||!data.data[0]){
-   throw new Error("No image returned by the API.");
-  }
-
-  let blob;
-
-  if(data.data[0].b64_json){
-   const binary=atob(data.data[0].b64_json);
-   const bytes=new Uint8Array(binary.length);
-
-   for(let i=0;i<binary.length;i++){
-    bytes[i]=binary.charCodeAt(i);
-   }
-
-   blob=new Blob([bytes],{type:"image/png"});
-  }else if(data.data[0].url){
-   const imageResponse=await fetch(data.data[0].url);
-   if(!imageResponse.ok)throw new Error("Image download failed.");
-   blob=await imageResponse.blob();
-  }else{
-   throw new Error("Unexpected image response.");
-  }
-
-  showImage(blob);
-  status.textContent="Reference-based anime scene created!";
-
- }catch(error){
-  status.textContent="Error: "+error.message;
- }finally{
-  generate.disabled=false;
-  edit.disabled=false;
- }
+ document.getElementById("story").textContent=
+ `${anime}\nGenre: ${type}\n\n`+
+ `Episode 1: The Awakening\n\n`+
+ `${hero} ek rahasyamayi duniya mein pahunchta hai. `+
+ `Wahan use ek ancient shadow power milti hai.\n\n`+
+ `${hero}: Ye duniya itni khatarnak kyun hai?\n`+
+ `Mysterious Voice: Tumhari asli power abhi jaagi nahi hai.\n\n`+
+ `${hero} apni power ko samajhne ke liye ek nayi journey shuru karta hai.\n\n`+
+ `To be continued...`;
 }
 
-function showImage(blob){
- if(generatedURL)URL.revokeObjectURL(generatedURL);
+function makeScenes(){
+ const hero=document.getElementById("hero").value || "Peter";
+ const ep=document.getElementById("episode").value || 1;
 
- generatedURL=URL.createObjectURL(blob);
+ const scenes=[
+  "Opening: Dark fantasy kingdom ka cinematic view.",
+  `${hero} ek mysterious dungeon mein enter karta hai.`,
+  "Ek mysterious shadow system appear hota hai.",
+  `${hero} apni hidden power discover karta hai.`,
+  "Cliffhanger: Ek mysterious enemy saamne aata hai."
+ ];
 
- const result=document.getElementById("result");
- result.src=generatedURL;
- result.hidden=false;
-
- document.getElementById("download").hidden=false;
-}
-
-function downloadImage(){
- if(!generatedURL)return;
-
- const a=document.createElement("a");
- a.href=generatedURL;
- a.download="shadow-king-peter.png";
- a.click();
+ document.getElementById("scenes").textContent=
+ `EPISODE ${ep}\n\n`+
+ scenes.map((s,i)=>`SCENE ${i+1}\n${s}\n`).join("\n");
 }
 </script>
-</body>
-</html>
